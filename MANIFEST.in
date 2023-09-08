@@ -2,3 +2,4 @@ include *.py
 include *.raw
 include LICENSE
 recursive-include cbits *.h
+exclude cbits\webrtc\common_audio\vad\main.c

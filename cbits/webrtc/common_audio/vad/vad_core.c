@@ -131,7 +131,7 @@ static inline int32_t RTC_NO_SANITIZE("signed-integer-overflow")
 //
 // - returns              : the VAD decision (0 - noise, 1 - speech).
 static int16_t GmmProbability(VadInstT* self, int16_t* features,
-                              int16_t total_power, size_t frame_length) {
+                              uint16_t total_energy, size_t frame_length, int16_t *flags) {
   int channel, k;
   int16_t feature_minimum;
   int16_t h0, h1;
@@ -172,7 +172,8 @@ static int16_t GmmProbability(VadInstT* self, int16_t* features,
     totalTest = self->total[2];
   }
 
-  if (total_power > kMinEnergy) {
+  if (total_energy > self->power_threshold)
+  {
     // The signal power of current frame is large enough for processing. The
     // processing consists of two parts:
     // 1) Calculating the likelihood of speech and thereby a VAD decision.
@@ -484,6 +485,11 @@ static int16_t GmmProbability(VadInstT* self, int16_t* features,
       self->over_hang = overhead1;
     }
   }
+  /* Return both vad flag and energy flag
+   * Enables us to compare
+   */
+  flags[0] = vadflag;
+  flags[1] = total_energy;
   return vadflag;
 }
 
@@ -540,6 +546,9 @@ int WebRtcVad_InitCore(VadInstT* self) {
   }
 
   self->init_flag = kInitCheck;
+
+  // Set power threshold to default
+  self->power_threshold = kMinEnergy;
 
   return 0;
 }
@@ -601,11 +610,18 @@ int WebRtcVad_set_mode_core(VadInstT* self, int mode) {
   return return_value;
 }
 
+// Set power threshold
+int WebRtcVad_set_threshold_core(VadInstT* self, int threshold)
+{
+  self->power_threshold = threshold;
+  return 0;
+}
+
 // Calculate VAD decision by first extracting feature values and then calculate
 // probability for both speech and background noise.
 
 int WebRtcVad_CalcVad48khz(VadInstT* inst, const int16_t* speech_frame,
-                           size_t frame_length) {
+                           size_t frame_length, int16_t *flags) {
   int vad;
   size_t i;
   int16_t speech_nb[240];  // 30 ms in 8 kHz.
@@ -624,13 +640,13 @@ int WebRtcVad_CalcVad48khz(VadInstT* inst, const int16_t* speech_frame,
   }
 
   // Do VAD on an 8 kHz signal
-  vad = WebRtcVad_CalcVad8khz(inst, speech_nb, frame_length / 6);
+  vad = WebRtcVad_CalcVad8khz(inst, speech_nb, frame_length / 6, flags);
 
   return vad;
 }
 
 int WebRtcVad_CalcVad32khz(VadInstT* inst, const int16_t* speech_frame,
-                           size_t frame_length)
+                           size_t frame_length, int16_t *flags)
 {
     size_t len;
     int vad;
@@ -647,13 +663,13 @@ int WebRtcVad_CalcVad32khz(VadInstT* inst, const int16_t* speech_frame,
     len /= 2;
 
     // Do VAD on an 8 kHz signal
-    vad = WebRtcVad_CalcVad8khz(inst, speechNB, len);
+    vad = WebRtcVad_CalcVad8khz(inst, speechNB, len, flags);
 
     return vad;
 }
 
 int WebRtcVad_CalcVad16khz(VadInstT* inst, const int16_t* speech_frame,
-                           size_t frame_length)
+                           size_t frame_length, int16_t *flags)
 {
     size_t len;
     int vad;
@@ -664,22 +680,23 @@ int WebRtcVad_CalcVad16khz(VadInstT* inst, const int16_t* speech_frame,
                            frame_length);
 
     len = frame_length / 2;
-    vad = WebRtcVad_CalcVad8khz(inst, speechNB, len);
+    vad = WebRtcVad_CalcVad8khz(inst, speechNB, len, flags);
 
     return vad;
 }
 
 int WebRtcVad_CalcVad8khz(VadInstT* inst, const int16_t* speech_frame,
-                          size_t frame_length)
+                          size_t frame_length, int16_t *flags)
 {
-    int16_t feature_vector[kNumChannels], total_power;
+    int16_t feature_vector[kNumChannels];
+	uint16_t total_energy;
 
     // Get power in the bands
-    total_power = WebRtcVad_CalculateFeatures(inst, speech_frame, frame_length,
+    total_energy = WebRtcVad_CalculateFeatures(inst, speech_frame, frame_length,
                                               feature_vector);
 
     // Make a VAD
-    inst->vad = GmmProbability(inst, feature_vector, total_power, frame_length);
+    inst->vad = GmmProbability(inst, feature_vector, total_energy, frame_length, flags);
 
     return inst->vad;
 }

@@ -53,6 +53,28 @@ static PyObject* vad_set_mode(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+static PyObject* vad_set_threshold(PyObject *self, PyObject *args)
+{
+  PyObject *vadptr;
+  long threshold;
+  if (!PyArg_ParseTuple(args, "Ol", &vadptr, &threshold))
+  {
+    return NULL;
+  }
+
+  if (threshold < 0)
+  {
+    return NULL;
+  }
+
+  if (WebRtcVad_set_threshold(PyCapsule_GetPointer(vadptr, "WebRtcVadPtr"), threshold))
+  {
+    PyErr_Format(VadError, "Unable to set threshold to %ld", threshold);
+    return NULL;
+  }
+  Py_RETURN_NONE;
+}
+
 static PyObject* valid_rate_and_frame_length(PyObject *self, PyObject *args)
 {
   long rate, frame_length;
@@ -117,6 +139,8 @@ static PyMethodDef WebRtcVadMethods[] = {
      "Init a vad."},
     {"set_mode",  vad_set_mode, METH_VARARGS,
      "Set mode."},
+    {"set_threshold", vad_set_threshold, METH_VARARGS,
+     "Set threshold."},
     {"process",  vad_process, METH_VARARGS,
      "Set mode."},
     {"valid_rate_and_frame_length", valid_rate_and_frame_length, METH_VARARGS,
