@@ -20,7 +20,7 @@
 enum { kNumChannels = 6 };   // Number of frequency bands (named channels).
 enum { kNumGaussians = 2 };  // Number of Gaussians per channel in the GMM.
 enum { kTableSize = kNumChannels * kNumGaussians };
-enum { kMinEnergy = 10 };  // Minimum energy required to trigger audio signal.
+enum { kMinEnergy = 24 };  // Minimum energy required to trigger audio signal.
 
 typedef struct VadInstT_ {
   int vad;
@@ -46,6 +46,7 @@ typedef struct VadInstT_ {
   int16_t over_hang_max_2[3];
   int16_t individual[3];
   int16_t total[3];
+  int16_t power_threshold; // Limit on power in frame - below this, not speech
 
   int init_flag;
 } VadInstT;
@@ -79,6 +80,27 @@ int WebRtcVad_InitCore(VadInstT* self);
 int WebRtcVad_set_mode_core(VadInstT* self, int mode);
 
 /****************************************************************************
+ * WebRtcVad_set_threshold_core(...)
+ * Added Sep 23 by Mobilus Labs
+ *
+ * This function changes the VAD energy threshold
+ *
+ * Input:
+ *      - inst      : VAD instance
+ *      - threshold : Threshold on energy level.
+ *                    Below this, signal is assumed to not be speech,
+ *                    and minimal processing is done
+ *
+ * Output:
+ *      - inst      : Changed  instance
+ *
+ * Return value     :  0 - Ok
+ *                    -1 - Error
+ */
+
+int WebRtcVad_set_threshold_core(VadInstT* self, int threshold);
+
+/****************************************************************************
  * WebRtcVad_CalcVad48khz(...)
  * WebRtcVad_CalcVad32khz(...)
  * WebRtcVad_CalcVad16khz(...)
@@ -100,15 +122,15 @@ int WebRtcVad_set_mode_core(VadInstT* self, int mode);
  */
 int WebRtcVad_CalcVad48khz(VadInstT* inst,
                            const int16_t* speech_frame,
-                           size_t frame_length);
+                           size_t frame_length, int16_t *flags);
 int WebRtcVad_CalcVad32khz(VadInstT* inst,
                            const int16_t* speech_frame,
-                           size_t frame_length);
+                           size_t frame_length, int16_t *flags);
 int WebRtcVad_CalcVad16khz(VadInstT* inst,
                            const int16_t* speech_frame,
-                           size_t frame_length);
+                           size_t frame_length, int16_t *flags);
 int WebRtcVad_CalcVad8khz(VadInstT* inst,
                           const int16_t* speech_frame,
-                          size_t frame_length);
+                          size_t frame_length, int16_t *flags);
 
 #endif  // COMMON_AUDIO_VAD_VAD_CORE_H_

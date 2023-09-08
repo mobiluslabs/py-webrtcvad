@@ -59,7 +59,7 @@ setup(
     description=('Python interface to the Google WebRTC Voice '
                  'Activity Detector (VAD)'),
     long_description=long_description,
-    url='https://github.com/wiseman/py-webrtcvad',
+    url='https://github.com/mobiluslabs/py-webrtcvad',
     license='MIT',
     classifiers=[
         # How mature is this project? Common values are

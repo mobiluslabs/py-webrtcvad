@@ -9,14 +9,19 @@ __version__ = pkg_resources.get_distribution('webrtcvad').version
 
 
 class Vad(object):
-    def __init__(self, mode=None):
+    def __init__(self, mode=None, threshold=None):
         self._vad = _webrtcvad.create()
         _webrtcvad.init(self._vad)
         if mode is not None:
             self.set_mode(mode)
+        if threshold is not None:
+            self.set_threshold(threshold)
 
     def set_mode(self, mode):
         _webrtcvad.set_mode(self._vad, mode)
+
+    def set_threshold(self, threshold):
+        _webrtcvad.set_threshold(self._vad, threshold)
 
     def is_speech(self, buf, sample_rate, length=None):
         length = length or int(len(buf) / 2)

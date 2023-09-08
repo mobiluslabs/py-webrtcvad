@@ -54,6 +54,17 @@ int WebRtcVad_Init(VadInst* handle);
 //                       has not been initialized).
 int WebRtcVad_set_mode(VadInst* handle, int mode);
 
+// Sets the VAD energy threshold. No VAD estimation will be performed
+// if int(log2(energy level)) in the frame is below this
+//
+// - handle  [i/o] : VAD instance.
+// - threshold [i] : Threshold. Between 1 and 31
+//
+// returns        : 0 - (OK),
+//                 -1 - (null pointer, mode could not be set or the VAD instance
+//                       has not been initialized).
+int WebRtcVad_set_threshold(VadInst* handle, int threshold);
+
 // Calculates a VAD decision for the |audio_frame|. For valid sampling rates
 // frame lengths, see the description of WebRtcVad_ValidRatesAndFrameLengths().
 //
@@ -69,7 +80,8 @@ int WebRtcVad_set_mode(VadInst* handle, int mode);
 int WebRtcVad_Process(VadInst* handle,
                       int fs,
                       const int16_t* audio_frame,
-                      size_t frame_length);
+                      size_t frame_length,
+					  int16_t *flags);
 
 // Checks for valid combinations of |rate| and |frame_length|. We support 10,
 // 20 and 30 ms frames and the rates 8000, 16000 and 32000 Hz.

@@ -13,6 +13,10 @@
 #include "webrtc/rtc_base/checks.h"
 #include "webrtc/common_audio/signal_processing/include/signal_processing_library.h"
 
+#include <stdio.h>
+
+#define MAX_RSHIFTS 5
+
 // Constants used in LogOfEnergy().
 static const int16_t kLogConst = 24660;  // 160*log10(2) in Q9.
 static const int16_t kLogEnergyIntPart = 14336;  // 14 in Q10
@@ -150,19 +154,23 @@ static void SplitFilter(const int16_t* data_in, size_t data_length,
 //                        |total_energy| <= |kMinEnergy|.
 // - log_energy   [o]   : 10 * log10("energy of |data_in|") given in Q4.
 static void LogOfEnergy(const int16_t* data_in, size_t data_length,
-                        int16_t offset, int16_t* total_energy,
+                        int16_t offset, uint32_t* total_energy, //int16_t* total_energy,
                         int16_t* log_energy) {
   // |tot_rshifts| accumulates the number of right shifts performed on |energy|.
   int tot_rshifts = 0;
   // The |energy| will be normalized to 15 bits. We use unsigned integer because
   // we eventually will mask out the fractional part.
   uint32_t energy = 0;
+  uint32_t orig_energy;
 
   RTC_DCHECK(data_in);
   RTC_DCHECK_GT(data_length, 0);
 
   energy = (uint32_t) WebRtcSpl_Energy((int16_t*) data_in, data_length,
                                        &tot_rshifts);
+  /* Scale energy down and remove scaling from WebRtcSpl_Energy()
+   * tot_rshifts never seems to be more than 5 */
+  orig_energy = energy >> (MAX_RSHIFTS - tot_rshifts);
 
   if (energy != 0) {
     // By construction, normalizing to 15 bits is equivalent with 17 leading
@@ -225,8 +233,10 @@ static void LogOfEnergy(const int16_t* data_in, size_t data_length,
   // Update the approximate |total_energy| with the energy of |data_in|, if
   // |total_energy| has not exceeded |kMinEnergy|. |total_energy| is used as an
   // energy indicator in WebRtcVad_GmmProbability() in vad_core.c.
+  /* Enable this for old (broken!) energy measure. Result is never less than kMinEnergy. */
+#if 0
   if (*total_energy <= kMinEnergy) {
-    if (tot_rshifts >= 0) {
+    if (tot_rshifts > 0) {
       // We know by construction that the |energy| > |kMinEnergy| in Q0, so add
       // an arbitrary value such that |total_energy| exceeds |kMinEnergy|.
       *total_energy += kMinEnergy + 1;
@@ -238,11 +248,14 @@ static void LogOfEnergy(const int16_t* data_in, size_t data_length,
       *total_energy += (int16_t) (energy >> -tot_rshifts);  // Q0.
     }
   }
+#else
+  *total_energy += orig_energy;
+#endif
 }
 
-int16_t WebRtcVad_CalculateFeatures(VadInstT* self, const int16_t* data_in,
+uint16_t WebRtcVad_CalculateFeatures(VadInstT* self, const int16_t* data_in,
                                     size_t data_length, int16_t* features) {
-  int16_t total_energy = 0;
+  uint32_t total_energy = 0;
   // We expect |data_length| to be 80, 160 or 240 samples, which corresponds to
   // 10, 20 or 30 ms in 8 kHz. Therefore, the intermediate downsampled data will
   // have at most 120 samples after the first split and at most 60 samples after
@@ -325,5 +338,6 @@ int16_t WebRtcVad_CalculateFeatures(VadInstT* self, const int16_t* data_in,
   // Energy in 80 Hz - 250 Hz.
   LogOfEnergy(hp_120, length, kOffsetVector[0], &total_energy, &features[0]);
 
-  return total_energy;
+  /* Return integer part of log2(energy) */
+  return (31 - WebRtcSpl_CountLeadingZeros32(total_energy));
 }
