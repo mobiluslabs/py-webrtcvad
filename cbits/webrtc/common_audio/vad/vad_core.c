@@ -488,7 +488,7 @@ static int16_t GmmProbability(VadInstT* self, int16_t* features,
   /* Return both vad flag and energy flag
    * Enables us to compare
    */
-  flags[0] = vadflag;
+  flags[0] = (vadflag > 0);
   flags[1] = total_energy;
   return vadflag;
 }

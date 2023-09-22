@@ -11,35 +11,72 @@
  * Arguments: Wav file to use (1..n)
  *            Energy threshold value
  *            Text to append to input file name to use for output file name
+ *            Convert text to wav
  */
 int main(int argc, char *argv[])
 {
 	int fileno = 0;
 	int energy_thresh = 24;
 	char *out_suffix;
+	int txt_to_wav = 0;
 	if (argc > 1)
 	{
 		fileno = strtol(argv[1], NULL, 10);
 		energy_thresh = strtol(argv[2], NULL, 10);
 		out_suffix = argv[3];
+		if (argc > 4)
+		{
+			txt_to_wav = 1;
+		}
 	}
 	VadInst* vad = WebRtcVad_Create();
 	WebRtcVad_Init(vad);
 	WebRtcVad_set_threshold(vad, energy_thresh);
 
 	/* Set of test recording file names, without .wav extension */
-	char *files[5] = {	"C:\\dev\\mobilus\\audio\\0170__Tony__100__Kaneez__Pink_noise__TRUE__annotated",
+	char *files[6] = {	"C:\\dev\\mobilus\\audio\\0170__Tony__100__Kaneez__Pink_noise__TRUE__annotated",
 						"C:\\dev\\mobilus\\audio\\0170__Tony__50__Kaneez__None__FALSE__annotated",
 						"C:\\dev\\mobilus\\audio\\0404__MSA-HP__100__Bala__Babble__FALSE__annotated",
 						"C:\\dev\\mobilus\\audio\\0404__MSA-HP__100__Bala__White_noise__FALSE__annotated",
-						"C:\\dev\\mobilus\\audio\\2023-03-07 mobiWAN-V2-4-16-APX-Digital, No Noise, List 69, 8k" };
-
+						"C:\\dev\\mobilus\\audio\\2023-03-07 mobiWAN-V2-4-16-APX-Digital, No Noise, List 69, 8k",
+						"C:\\dev\\mobilus\\audio\\i2s2_3" };
 	char infile[100], outfile[100];
 	strcpy(infile, files[fileno]);
-	strcat(infile, ".wav");
 	strcpy(outfile, files[fileno]);
+
+	if (txt_to_wav)
+	{
+		strcat(infile, ".txt");
+		strcat(outfile, ".wav");
+		FILE *txtfile;
+		txtfile = fopen(infile, "r");
+	    WavFile *fp = wav_open(outfile, WAV_OPEN_WRITE);
+	    wav_set_format(fp, WAV_FORMAT_PCM);
+	    wav_set_num_channels(fp, 2);
+	    wav_set_sample_rate(fp, 8000);
+
+	    char line[100];
+	    float time;
+		int chan, value;
+		short out_frame[2];
+	    fgets(line, 100, txtfile); // Get rid of header line
+	    while (fgets(line, 100, txtfile))
+	    {
+	    	sscanf(line, "%f,%d,%d", &time, &chan, &value);
+	    	out_frame[chan-1] = value;
+	    	if (chan == 2)
+	    	{
+	    		wav_write(fp, out_frame, 1);
+	    	}
+	    }
+	    wav_close(fp);
+		strcpy(infile, files[fileno]);
+		strcpy(outfile, files[fileno]);
+	}
+
 	strcat(outfile, out_suffix);
 	strcat(outfile, ".wav");
+	strcat(infile, ".wav");
 
     WavFile *wfile = wav_open(infile, WAV_OPEN_READ);
 
