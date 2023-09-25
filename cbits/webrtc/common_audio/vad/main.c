@@ -5,7 +5,6 @@
 #include "webrtc/common_audio/vad/include/webrtc_vad.h"
 
 #define FRAME_SIZE 160
-#define OUT_CHANNELS 3
 
 /*
  * Arguments: Wav file to use (1..n)
@@ -34,19 +33,23 @@ int main(int argc, char *argv[])
 	WebRtcVad_set_threshold(vad, energy_thresh);
 
 	/* Set of test recording file names, without .wav extension */
-	char *files[6] = {	"C:\\dev\\mobilus\\audio\\0170__Tony__100__Kaneez__Pink_noise__TRUE__annotated",
+	char *files[7] = {	"C:\\dev\\mobilus\\audio\\0170__Tony__100__Kaneez__Pink_noise__TRUE__annotated",
 						"C:\\dev\\mobilus\\audio\\0170__Tony__50__Kaneez__None__FALSE__annotated",
 						"C:\\dev\\mobilus\\audio\\0404__MSA-HP__100__Bala__Babble__FALSE__annotated",
 						"C:\\dev\\mobilus\\audio\\0404__MSA-HP__100__Bala__White_noise__FALSE__annotated",
 						"C:\\dev\\mobilus\\audio\\2023-03-07 mobiWAN-V2-4-16-APX-Digital, No Noise, List 69, 8k",
-						"C:\\dev\\mobilus\\audio\\i2s2_3" };
+						"C:\\dev\\mobilus\\audio\\i2s2_3",
+						"C:\\dev\\mobilus\\audio\\jason_headshaking_35db"};
 	char infile[100], outfile[100];
 	strcpy(infile, files[fileno]);
 	strcpy(outfile, files[fileno]);
 
+	/*
+	 * For converting text files from saleae Logic 2 to wav files
+	 */
 	if (txt_to_wav)
 	{
-		strcat(infile, ".txt");
+		strcat(infile, ".csv");
 		strcat(outfile, ".wav");
 		FILE *txtfile;
 		txtfile = fopen(infile, "r");
@@ -56,15 +59,15 @@ int main(int argc, char *argv[])
 	    wav_set_sample_rate(fp, 8000);
 
 	    char line[100];
-	    float time;
+	    float time, time2;
 		int chan, value;
 		short out_frame[2];
 	    fgets(line, 100, txtfile); // Get rid of header line
 	    while (fgets(line, 100, txtfile))
 	    {
-	    	sscanf(line, "%f,%d,%d", &time, &chan, &value);
-	    	out_frame[chan-1] = value;
-	    	if (chan == 2)
+	    	sscanf(line, "\"I2S / PCM [1]\",\"data\",%f,%f,%d,%d", &time, &time2, &chan, &value);
+	    	out_frame[chan] = value;
+	    	if (chan == 1)
 	    	{
 	    		wav_write(fp, out_frame, 1);
 	    	}
@@ -80,27 +83,31 @@ int main(int argc, char *argv[])
 
     WavFile *wfile = wav_open(infile, WAV_OPEN_READ);
 
-    WavU16 n_channels = wav_get_num_channels(wfile);
-    short *buf = malloc(sizeof(WavU16) * n_channels * FRAME_SIZE);
-    short abuf[n_channels][FRAME_SIZE];
+    WavU16 in_channels = wav_get_num_channels(wfile);
+    short *buf = malloc(sizeof(WavU16) * in_channels * FRAME_SIZE);
+    short abuf[in_channels][FRAME_SIZE];
     WavU32 rate = wav_get_sample_rate(wfile);
 
     WavFile *fp = wav_open(outfile, WAV_OPEN_WRITE);
     wav_set_format(fp, WAV_FORMAT_PCM);
-    wav_set_num_channels(fp, OUT_CHANNELS);
+    /* Make output channel count the same as input
+     * Assume third input channel is 'ground truth'
+     * and copy this to third output channel
+     */
+    wav_set_num_channels(fp, in_channels);
     wav_set_sample_rate(fp, rate);
 
     int vad_result;
-    short out_frame[FRAME_SIZE * OUT_CHANNELS];
+    short out_frame[FRAME_SIZE * in_channels];
     int frame_no = 0;
     int16_t info[3];
     while (wav_read(wfile, buf, FRAME_SIZE))
     {
         for (int j=0; j < FRAME_SIZE; j++)
         {
-        	for (int i=0; i<n_channels; i++)
+        	for (int i=0; i<in_channels; i++)
         	{
-        		abuf[i][j] = buf[j*n_channels + i];
+        		abuf[i][j] = buf[j*in_channels + i];
         	}
         }
 
@@ -113,10 +120,10 @@ int main(int argc, char *argv[])
     		 * Output vad and energy flags to multichannel wav file
     		 * for viewing in Audacity
     		 */
-    		int start = i * OUT_CHANNELS;
+    		int start = i * in_channels;
     		out_frame[start] = info[0] * 32767;  // Vad indication
     		out_frame[start+1] = info[1] * 1000; // Log2(energy level). Multiplied to show up in Audacity
-    		if (n_channels == 3) out_frame[start+3] = abuf[2][i];     // Ground truth from input file
+    		if (in_channels == 3) out_frame[start+3] = abuf[2][i];     // Ground truth from input file
     	}
 		wav_write(fp, out_frame, FRAME_SIZE);
     }
