@@ -107,6 +107,7 @@ static PyObject* vad_process(PyObject *self, PyObject *args)
   Py_buffer audio_frame = {NULL, NULL};
   long frame_length;
   int result;
+  int16_t flags[2];
 #ifdef PY3
   if (!PyArg_ParseTuple(args, "Oly*l", &vadptr, &fs, &audio_frame, &frame_length)) {
 #else
@@ -117,7 +118,8 @@ static PyObject* vad_process(PyObject *self, PyObject *args)
   result =  WebRtcVad_Process(PyCapsule_GetPointer(vadptr, "WebRtcVadPtr"),
                                   fs,
                                   audio_frame.buf,
-                                  frame_length);
+                                  frame_length,
+								  flags);
   PyBuffer_Release(&audio_frame);
   switch (result) {
   case 1:
