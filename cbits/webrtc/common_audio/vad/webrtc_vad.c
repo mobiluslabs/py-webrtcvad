@@ -104,26 +104,6 @@ int WebRtcVad_Process(VadInst* handle, int fs, const int16_t* audio_frame,
 }
 
 int WebRtcVad_ValidRateAndFrameLength(int rate, size_t frame_length) {
-  int return_value = -1;
-  size_t i;
-  int valid_length_ms;
-  size_t valid_length;
-
-  // We only allow 10, 20 or 30 ms frames. Loop through valid frame rates and
-  // see if we have a matching pair.
-  for (i = 0; i < kRatesSize; i++) {
-    if (kValidRates[i] == rate) {
-      for (valid_length_ms = 10; valid_length_ms <= kMaxFrameLengthMs;
-          valid_length_ms += 10) {
-        valid_length = (size_t)(kValidRates[i] / 1000 * valid_length_ms);
-        if (frame_length == valid_length) {
-          return_value = 0;
-          break;
-        }
-      }
-      break;
-    }
-  }
-
+  int return_value = !(frame_length == 64 || frame_length == 80);
   return return_value;
 }

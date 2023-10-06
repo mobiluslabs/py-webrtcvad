@@ -4,13 +4,13 @@
 #include "wav.h"
 #include "webrtc/common_audio/vad/include/webrtc_vad.h"
 
-#define FRAME_SIZE 160
 #define OUT_CHANNELS 2
 #define NUM_FILES 8
 
 /*
  * Arguments: Wav file to use (1..n). Set to 99 to use all in turn
  *            Energy threshold value
+ *            Frame size, 64 or 80
  *            Text to append to input file name to use for output file name
  *            Convert text to wav
  */
@@ -19,13 +19,15 @@ int main(int argc, char *argv[])
 	int fileno = 0;
 	int energy_thresh = 24;
 	char *out_suffix;
+	int frame_size = 80;
 	int txt_to_wav = 0;
 	if (argc > 1)
 	{
 		fileno = strtol(argv[1], NULL, 10);
 		energy_thresh = strtol(argv[2], NULL, 10);
-		out_suffix = argv[3];
-		if (argc > 4)
+		frame_size = strtol(argv[3], NULL, 10);
+		out_suffix = argv[4];
+		if (argc > 5)
 		{
 			txt_to_wav = 1;
 		}
@@ -92,8 +94,8 @@ int main(int argc, char *argv[])
 		WavFile *wfile = wav_open(infile, WAV_OPEN_READ);
 
 		WavU16 in_channels = wav_get_num_channels(wfile);
-		short *buf = malloc(sizeof(WavU16) * in_channels * FRAME_SIZE);
-		short abuf[in_channels][FRAME_SIZE];
+		short *buf = malloc(sizeof(WavU16) * in_channels * frame_size);
+		short abuf[in_channels][frame_size];
 		WavU32 rate = wav_get_sample_rate(wfile);
 
 		WavFile *fp = wav_open(outfile, WAV_OPEN_WRITE);
@@ -106,12 +108,12 @@ int main(int argc, char *argv[])
 		wav_set_sample_rate(fp, rate);
 
 		int vad_result;
-		short out_frame[FRAME_SIZE * OUT_CHANNELS];
+		short out_frame[frame_size * OUT_CHANNELS];
 		int frame_no = 0;
 		int16_t info[3];
-		while (wav_read(wfile, buf, FRAME_SIZE))
+		while (wav_read(wfile, buf, frame_size))
 		{
-			for (int j=0; j < FRAME_SIZE; j++)
+			for (int j=0; j < frame_size; j++)
 			{
 				for (int i=0; i<in_channels; i++)
 				{
@@ -121,8 +123,8 @@ int main(int argc, char *argv[])
 
 			frame_no++;
 			/* Just process left channel at present */
-			vad_result = WebRtcVad_Process(vad, rate, abuf[0], FRAME_SIZE, info);
-			for (int i = 0; i < FRAME_SIZE; i++)
+			vad_result = WebRtcVad_Process(vad, rate, abuf[0], frame_size, info);
+			for (int i = 0; i < frame_size; i++)
 			{
 				/*
 				 * Output vad and energy flags to multichannel wav file
@@ -132,7 +134,7 @@ int main(int argc, char *argv[])
 				out_frame[start] = info[0] * 32767;  // Vad indication
 				out_frame[start+1] = info[1] * 1000; // Log2(energy level). Multiplied to show up in Audacity
 			}
-			wav_write(fp, out_frame, FRAME_SIZE);
+			wav_write(fp, out_frame, frame_size);
 		}
 
 		wav_close(fp);

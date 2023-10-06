@@ -85,10 +85,10 @@ static const int16_t kOverHangMax2AGG[3] = { 9, 5, 3 };
 static const int16_t kLocalThresholdAGG[3] = { 82, 78, 82 };
 static const int16_t kGlobalThresholdAGG[3] = { 285, 260, 285 };
 // Mode 3, Very aggressive.
-static const int16_t kOverHangMax1VAG[3] = { 6, 3, 2 };
-static const int16_t kOverHangMax2VAG[3] = { 9, 5, 3 };
-static const int16_t kLocalThresholdVAG[3] = { 94, 94, 94 };
-static const int16_t kGlobalThresholdVAG[3] = { 1100, 1050, 1100 };
+static const int16_t kOverHangMax1VAG[3] = { 7, 6, 0 }; // ~480ms in 64, 80 sample blocks @ 8kHz
+static const int16_t kOverHangMax2VAG[3] = { 11, 9, 0 }; // ~720ms
+static const int16_t kLocalThresholdVAG[3] = { 94, 94, 0 };
+static const int16_t kGlobalThresholdVAG[3] = { 1100, 1100, 0 };
 
 // Calculates the weighted average w.r.t. number of Gaussians. The |data| are
 // updated with an |offset| before averaging.
@@ -155,12 +155,12 @@ static int16_t GmmProbability(VadInstT* self, int16_t* features,
   int16_t overhead1, overhead2, individualTest, totalTest;
 
   // Set various thresholds based on frame lengths (80, 160 or 240 samples).
-  if (frame_length == 80) {
+  if (frame_length == 64) {
     overhead1 = self->over_hang_max_1[0];
     overhead2 = self->over_hang_max_2[0];
     individualTest = self->individual[0];
     totalTest = self->total[0];
-  } else if (frame_length == 160) {
+  } else if (frame_length == 80) {
     overhead1 = self->over_hang_max_1[1];
     overhead2 = self->over_hang_max_2[1];
     individualTest = self->individual[1];
